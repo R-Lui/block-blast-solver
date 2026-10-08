@@ -32,6 +32,8 @@ Open `index.html` in a browser. Nothing to install, no build step, no dependenci
 
 Only complete plays can be dropped — a run that places two of your three pieces has nothing to put down, so the app says so and offers to turn rotations on instead.
 
+On a wide screen the tray sits beside the board rather than under it, and the pair stays put while you scroll the solutions, so picking the next round never means scrolling back up. Below 1150px the panels stack and the layout goes single-column on phones.
+
 ## Notes on the search
 
 The solver packs the 8×8 board into two 32-bit words, so testing a placement is two bitwise operations and a step allocates nothing. Results are de-duplicated by the board each play leaves behind, so the same position reached two ways is listed once.

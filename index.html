@@ -643,6 +643,35 @@
     }
   }
 
+  /* ---------- desktop: board and tray side by side ---------- */
+
+  @media (min-width: 1150px) {
+    .wrap { max-width: 1360px; }
+
+    .cols {
+      grid-template-columns: minmax(0, 1.5fr) minmax(420px, 1fr);
+      gap: 20px;
+    }
+
+    /* Board left, tray right, both above the fold — no scrolling between them. */
+    .left {
+      display: grid;
+      grid-template-columns: minmax(300px, 1.12fr) minmax(290px, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .left > .panel + .panel { margin-top: 0; }
+
+    .tray { gap: 9px; }
+    .piece { padding: 8px; }
+    .lib { gap: 7px; }
+    .lib-strip { padding-bottom: 2px; }
+
+    /* Stuck only when the whole thing clears the fold; measured in JS. */
+    .left.stick { position: sticky; top: 18px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
   }
@@ -660,7 +689,7 @@
   </header>
 
   <div class="cols">
-    <div class="left">
+    <div class="left" id="leftRegion">
       <section class="panel" id="boardPanel">
         <div class="panel-head">
           <h2>Your board</h2>
@@ -1157,6 +1186,7 @@ const EXAMPLE_PIECES = [
     optClear: document.getElementById('optClear'),
     optRotate: document.getElementById('optRotate'),
     boardPanel: document.getElementById('boardPanel'),
+    leftRegion: document.getElementById('leftRegion'),
     pinbar: document.getElementById('pinbar'),
     pinbarMini: document.getElementById('pinbarMini'),
     pinbarMoves: document.getElementById('pinbarMoves'),
@@ -2035,6 +2065,18 @@ const EXAMPLE_PIECES = [
     slotViews.length = 0;
     buildTray();
     updateCounts();
+    updateLeftStick();
+  }
+
+  /* Board and tray sit side by side on wide screens. Pin the pair in place
+     while the solutions scroll — but only when both actually fit on screen,
+     otherwise the bottom of the tray would be stranded below the fold. */
+  function updateLeftStick() {
+    const left = els.leftRegion;
+    if (!left) return;
+    const wide = window.matchMedia('(min-width: 1150px)').matches;
+    const fits = left.offsetHeight + 26 <= window.innerHeight;
+    left.classList.toggle('stick', wide && fits);
   }
 
   function loadExample() {
@@ -2095,7 +2137,7 @@ const EXAMPLE_PIECES = [
     applySolution(pinned, pinned.seq.length === total);
   });
 
-  window.addEventListener('resize', updatePinbar);
+  window.addEventListener('resize', () => { updatePinbar(); updateLeftStick(); });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -2108,6 +2150,7 @@ const EXAMPLE_PIECES = [
 
   buildLibrary();
   loadExample();
+  updateLeftStick();
 })();
 </script>
 </body>
