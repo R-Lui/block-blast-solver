@@ -97,7 +97,6 @@
 
   @media (max-width: 940px) {
     .cols { grid-template-columns: minmax(0, 1fr); }
-    .left { position: static !important; }
   }
 
   .panel {
@@ -110,11 +109,9 @@
 
   .panel + .panel { margin-top: 20px; }
 
-  .left { position: sticky; top: 20px; }
-
   /* Grid and flex children default to a min width of auto, which lets one
      wide control (a <select> of shape names) push the whole page sideways. */
-  .cols > *, .panel, .piece, .piece-tools, .piece-tools select { min-width: 0; }
+  .cols > *, .panel, .piece, .piece-tools, .lib-strip, .tile { min-width: 0; }
 
   h2 {
     margin: 0;
@@ -233,6 +230,14 @@
     border: 1px solid var(--line);
     border-radius: 14px;
     background: rgba(0, 0, 0, .16);
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+
+  /* The slot the next shape from the library lands in. */
+  .piece.active {
+    border-color: var(--line-2);
+    background: rgba(255, 255, 255, .05);
+    box-shadow: inset 0 0 0 1px rgba(143, 140, 248, .55);
   }
 
   .piece-head {
@@ -249,7 +254,24 @@
   .dot.d2 { background: var(--p3); }
 
   .piece-name { font-weight: 600; }
-  .piece-count { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .piece-count { margin-left: auto; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .piece-x {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--muted);
+    background: transparent;
+    border-color: transparent;
+    border-radius: 7px;
+  }
+
+  .piece-x:hover { color: var(--text); background: rgba(255, 255, 255, .09); border-color: var(--line); }
 
   .pgrid {
     display: grid;
@@ -272,20 +294,94 @@
 
   .piece-tools { display: flex; gap: 6px; margin-top: 8px; }
 
-  .piece-tools select {
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: 100%;
-    font: inherit;
-    font-size: 12px;
-    color: var(--text);
-    background: var(--panel-3);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 5px 6px;
+  .piece-tools button { flex: none; padding: 5px 9px; border-radius: 8px; font-size: 12px; line-height: 1.3; }
+
+  /* ---------- shape library: one scrollable strip per group ---------- */
+
+  .lib {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
   }
 
-  .piece-tools button { flex: none; padding: 5px 9px; border-radius: 8px; font-size: 12px; line-height: 1.3; }
+  .lib-head {
+    margin: 0;
+    font-family: Fraunces, "Iowan Old Style", Georgia, serif;
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .lib-row { display: grid; gap: 5px; }
+
+  .lib-name {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .lib-strip {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 2px 2px 6px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    overscroll-behavior-x: contain;
+  }
+
+  .lib-strip::-webkit-scrollbar { height: 6px; }
+  .lib-strip::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+  .lib-strip::-webkit-scrollbar-track { background: transparent; }
+
+  .tile {
+    flex: none;
+    width: 54px;
+    padding: 5px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: rgba(0, 0, 0, .2);
+    scroll-snap-align: start;
+    touch-action: manipulation;
+  }
+
+  .tile:hover { border-color: var(--line-2); background: rgba(255, 255, 255, .06); }
+
+  .tile-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; }
+  .tile-grid i { aspect-ratio: 1 / 1; border-radius: 2px; background: var(--tile); }
+  .tile-grid i.on { background: linear-gradient(160deg, #bab8ff, var(--p1-d)); }
+  .lib[data-active="1"] .tile-grid i.on { background: linear-gradient(160deg, #ffc6b3, var(--p2-d)); }
+  .lib[data-active="2"] .tile-grid i.on { background: linear-gradient(160deg, #a9f3d0, var(--p3-d)); }
+
+  /* ---------- toast ---------- */
+
+  .toast {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(16px + var(--pinbar-h, 0px) + env(safe-area-inset-bottom));
+    margin: 0 auto;
+    width: fit-content;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: min(520px, calc(100vw - 24px));
+    padding: 10px 12px 10px 16px;
+    border: 1px solid var(--line-2);
+    border-radius: 16px;
+    background: linear-gradient(180deg, #3b2534, #2b1a27);
+    box-shadow: 0 20px 44px -20px #000;
+    font-size: 13px;
+    line-height: 1.35;
+    animation: rise .2s ease both;
+  }
+
+  .toast[hidden] { display: none; }
+  .toast button { flex: none; padding: 6px 13px; font-size: 12.5px; }
 
   details.io { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
 
@@ -484,20 +580,21 @@
     background: linear-gradient(180deg, #35212f, #2b1a27);
     box-shadow: 0 20px 44px -18px #000;
     animation: rise .2s ease both;
+    flex-wrap: wrap;
   }
 
   .pinbar[hidden] { display: none; }
 
   .pinbar .mini { width: 100px; flex: none; }
+  body.has-pin { padding-bottom: calc(118px + env(safe-area-inset-bottom)); }
 
   .pinbar-text { min-width: 0; font-size: 12px; color: var(--muted); line-height: 1.35; }
+  .pinbar-text { flex: 1 1 130px; }
   .pinbar-text b { display: block; margin-bottom: 2px; color: var(--text); font-size: 13px; font-weight: 600; }
   .pinbar-text i { font-style: normal; color: var(--best); }
   .pinbar button { flex: none; padding: 6px 10px; }
-
-  @media (min-width: 721px) {
-    .pinbar { display: none; }
-  }
+  .pinbar .drop { color: #17111a; background: linear-gradient(160deg, #b3b1ff, #7d7af2); border-color: transparent; font-weight: 600; }
+  .pinbar .drop:hover { background: linear-gradient(160deg, #c3c1ff, #8b88f8); }
 
   /* ---------- phones ---------- */
 
@@ -559,12 +656,12 @@
       <span class="eyebrow">Board analyser · 8 × 8 · three pieces</span>
       <h1>Block Blast <em>Solver</em></h1>
     </div>
-    <p>Draw the board and the three tray pieces. Every play that fits all three shows up below, ranked by lines cleared — plus the best you can manage when nothing fits.</p>
+    <p>Draw the board and the three tray pieces. Every play that fits all three shows up below, ranked by lines cleared. When you see one you like, double-tap it to drop those pieces on the board and start the next tray.</p>
   </header>
 
   <div class="cols">
     <div class="left">
-      <section class="panel">
+      <section class="panel" id="boardPanel">
         <div class="panel-head">
           <h2>Your board</h2>
           <span class="chip" id="fillCount">0 blocks</span>
@@ -605,7 +702,8 @@
           <span class="chip" id="pieceChip">0 of 3 drawn</span>
         </div>
         <div class="tray" id="tray"></div>
-        <p class="hint">Tap cells to draw each piece exactly as it sits in the tray, or pick a shape from the list.</p>
+        <p class="hint">The ringed slot takes the next shape you tap below. Tap a slot's grid to draw something custom, or the ✕ to empty it.</p>
+        <div class="lib" id="lib" data-active="0"></div>
       </section>
     </div>
 
@@ -632,7 +730,7 @@
       <div class="legend">
         <span><i class="swatch pre"></i>already on the board</span>
         <span><i class="swatch ghost"></i>cleared away by this play</span>
-        <span>Hover a play to preview it on your board</span>
+        <span>Hover a play to preview it · double-tap to drop it on the board</span>
       </div>
 
       <p class="foot">Pieces keep their shape and land anywhere they fit without overlapping. A completed row or column clears straight after the drop, which is why a play can leave the board emptier than the piece that caused it.</p>
@@ -646,7 +744,13 @@
     <b id="pinbarTitle">Pinned play</b>
     <span id="pinbarMoves"></span>
   </div>
+  <button type="button" id="pinbarDrop" class="drop">Drop it</button>
   <button type="button" id="pinbarClose" aria-label="Unpin this play">Unpin</button>
+</div>
+
+<div class="toast" id="toast" hidden>
+  <span id="toastMsg"></span>
+  <button type="button" id="toastAction" hidden></button>
 </div>
 
 <script>
@@ -970,45 +1074,48 @@ function solve(startBoard, pieces, opts) {
   };
 }
 
-/* ===================== SHAPES FOR THE PICKER ===================== */
-const PRESETS = [
-  { n: '1 × 1 dot', rows: ['x'] },
-  { n: '1 × 2', rows: ['xx'] },
-  { n: '1 × 3', rows: ['xxx'] },
-  { n: '1 × 4', rows: ['xxxx'] },
-  { n: '1 × 5 bar', rows: ['xxxxx'] },
-  { n: '2 tall', rows: ['x', 'x'] },
-  { n: '3 tall', rows: ['x', 'x', 'x'] },
-  { n: '4 tall', rows: ['x', 'x', 'x', 'x'] },
-  { n: '5 tall bar', rows: ['x', 'x', 'x', 'x', 'x'] },
-  { n: '2 × 2 square', rows: ['xx', 'xx'] },
-  { n: '2 × 3 block', rows: ['xxx', 'xxx'] },
-  { n: '3 × 2 block', rows: ['xx', 'xx', 'xx'] },
-  { n: '3 × 3 square', rows: ['xxx', 'xxx', 'xxx'] },
-  { n: 'corner', rows: ['x.', 'xx'] },
-  { n: 'corner, flipped', rows: ['xx', 'x.'] },
-  { n: 'corner, other way', rows: ['.x', 'xx'] },
-  { n: 'corner, other way flipped', rows: ['xx', '.x'] },
-  { n: 'L (5)', rows: ['x..', 'x..', 'xxx'] },
-  { n: 'L (5) flipped', rows: ['xxx', 'x..', 'x..'] },
-  { n: 'J (5)', rows: ['xxx', '..x', '..x'] },
-  { n: 'J (5) flipped', rows: ['..x', '..x', 'xxx'] },
-  { n: 'T', rows: ['xxx', '.x.'] },
-  { n: 'T upside down', rows: ['.x.', 'xxx'] },
-  { n: 'T on its side', rows: ['x.', 'xx', 'x.'] },
-  { n: 'T on its other side', rows: ['.x', 'xx', '.x'] },
-  { n: 'S', rows: ['.xx', 'xx.'] },
-  { n: 'Z', rows: ['xx.', '.xx'] },
-  { n: 'S upright', rows: ['x.', 'xx', '.x'] },
-  { n: 'Z upright', rows: ['.x', 'xx', 'x.'] },
-  { n: 'plus', rows: ['.x.', 'xxx', '.x.'] },
-  { n: 'diagonal 2', rows: ['x.', '.x'] },
-  { n: 'diagonal 3', rows: ['x..', '.x.', '..x'] },
-  { n: 'diagonal 3 flipped', rows: ['..x', '.x.', 'x..'] },
-  { n: 'bar with a foot', rows: ['xxx', 'x..'] },
-  { n: 'bar with a foot flipped', rows: ['xxx', '..x'] },
-  { n: 'corner 4', rows: ['x.', 'x.', 'xx'] },
-  { n: 'corner 4 flipped', rows: ['.x', '.x', 'xx'] }
+/* ===================== SHAPE LIBRARY =====================
+   Grouped like a shelf of pieces. Every entry is drawn as a 5 x 5 tile, so
+   the shape is the label — the words only live in the tooltip.             */
+const SHAPE_LIBRARY = [
+  {
+    name: 'Bars',
+    shapes: [
+      ['x'], ['xx'], ['xxx'], ['xxxx'], ['xxxxx'],
+      ['x', 'x'], ['x', 'x', 'x'], ['x', 'x', 'x', 'x'], ['x', 'x', 'x', 'x', 'x']
+    ]
+  },
+  {
+    name: 'Blocks',
+    shapes: [
+      ['xx', 'xx'],
+      ['xxx', 'xxx'],
+      ['xx', 'xx', 'xx'],
+      ['xxx', 'xxx', 'xxx']
+    ]
+  },
+  {
+    name: 'Corners',
+    shapes: [
+      ['x.', 'xx'], ['xx', 'x.'], ['.x', 'xx'], ['xx', '.x'],
+      ['x.', 'x.', 'xx'], ['.x', '.x', 'xx'], ['xx', 'x.', 'x.'], ['xx', '.x', '.x']
+    ]
+  },
+  {
+    name: 'L and T pieces',
+    shapes: [
+      ['x..', 'x..', 'xxx'], ['xxx', 'x..', 'x..'], ['xxx', '..x', '..x'], ['..x', '..x', 'xxx'],
+      ['xxx', '.x.'], ['.x.', 'xxx'], ['x.', 'xx', 'x.'], ['.x', 'xx', '.x']
+    ]
+  },
+  {
+    name: 'Steps and strays',
+    shapes: [
+      ['.xx', 'xx.'], ['xx.', '.xx'], ['x.', 'xx', '.x'], ['.x', 'xx', 'x.'],
+      ['.x.', 'xxx', '.x.'], ['x.', '.x'], ['x..', '.x.', '..x'], ['..x', '.x.', 'x..'],
+      ['xxx', 'x..'], ['xxx', '..x']
+    ]
+  }
 ];
 
 /* The position from the screenshot this tool was built for. */
@@ -1049,15 +1156,20 @@ const EXAMPLE_PIECES = [
     text: document.getElementById('boardText'),
     optClear: document.getElementById('optClear'),
     optRotate: document.getElementById('optRotate'),
+    boardPanel: document.getElementById('boardPanel'),
     pinbar: document.getElementById('pinbar'),
     pinbarMini: document.getElementById('pinbarMini'),
     pinbarMoves: document.getElementById('pinbarMoves'),
-    pinbarTitle: document.getElementById('pinbarTitle')
+    pinbarTitle: document.getElementById('pinbarTitle'),
+    pinbarDrop: document.getElementById('pinbarDrop'),
+    lib: document.getElementById('lib'),
+    toast: document.getElementById('toast'),
+    toastMsg: document.getElementById('toastMsg'),
+    toastAction: document.getElementById('toastAction')
   };
 
   const boardState = new Uint8Array(CELL_TOTAL);
   const pieceGrids = [new Array(25).fill(false), new Array(25).fill(false), new Array(25).fill(false)];
-  const pieceSelects = [];
 
   let lastResult = null;
   let filterMode = 'all';
@@ -1154,6 +1266,53 @@ const EXAMPLE_PIECES = [
     return grid;
   }
 
+  /* ---------- tray slots ---------- */
+
+  const slotViews = [];
+  let activeSlot = 0;
+  let nextRound = false;
+  let undoSnapshot = null;
+
+  function slotIsEmpty(slot) {
+    for (let i = 0; i < 25; i++) if (pieceGrids[slot][i]) return false;
+    return true;
+  }
+
+  function firstEmptySlot() {
+    for (let slot = 0; slot < 3; slot++) if (slotIsEmpty(slot)) return slot;
+    return -1;
+  }
+
+  function setActiveSlot(slot) {
+    activeSlot = slot;
+    els.lib.dataset.active = String(slot);
+    for (let i = 0; i < slotViews.length; i++) {
+      if (slotViews[i]) slotViews[i].el.classList.toggle('active', i === slot);
+    }
+  }
+
+  function refreshSlot(slot) {
+    if (slotViews[slot]) slotViews[slot].show(pieceGrids[slot]);
+  }
+
+  function refreshSlots() {
+    for (let slot = 0; slot < 3; slot++) refreshSlot(slot);
+    updateCounts();
+  }
+
+  /* A tile from the library lands in the ringed slot, then the ring moves on
+     to the next empty one, so three taps fill a tray. */
+  function fillActiveSlot(rows) {
+    const slot = activeSlot;
+    pieceGrids[slot] = rowsToGrid(rows);
+    refreshSlot(slot);
+    const next = firstEmptySlot();
+    setActiveSlot(next < 0 ? slot : next);
+    nextRound = false;
+    updateCounts();
+    scheduleSolve();
+  }
+
   function buildTray() {
     for (let slot = 0; slot < 3; slot++) {
       const card = document.createElement('div');
@@ -1178,18 +1337,13 @@ const EXAMPLE_PIECES = [
       const tools = document.createElement('div');
       tools.className = 'piece-tools';
 
-      const select = document.createElement('select');
-      select.setAttribute('aria-label', 'Shape for piece ' + (slot + 1));
-      const custom = document.createElement('option');
-      custom.value = '-1';
-      custom.textContent = 'Custom';
-      select.appendChild(custom);
-      PRESETS.forEach((preset, idx) => {
-        const option = document.createElement('option');
-        option.value = String(idx);
-        option.textContent = preset.n;
-        select.appendChild(option);
-      });
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'piece-x';
+      remove.title = 'Empty this slot';
+      remove.setAttribute('aria-label', 'Empty piece ' + (slot + 1));
+      remove.textContent = '\u00D7';
+      head.appendChild(remove);
 
       const turn = document.createElement('button');
       turn.type = 'button';
@@ -1197,15 +1351,9 @@ const EXAMPLE_PIECES = [
       turn.setAttribute('aria-label', 'Turn piece ' + (slot + 1));
       turn.textContent = '\u27F3';
 
-      const clear = document.createElement('button');
-      clear.type = 'button';
-      clear.setAttribute('aria-label', 'Empty piece ' + (slot + 1));
-      clear.textContent = 'Clear';
-
-      tools.append(select, turn, clear);
+      tools.append(turn);
       card.append(head, grid, tools);
       els.tray.appendChild(card);
-      pieceSelects.push(select);
 
       const show = (state) => {
         let count = 0;
@@ -1225,19 +1373,10 @@ const EXAMPLE_PIECES = [
           let count = 0;
           for (let k = 0; k < 25; k++) if (pieceGrids[slot][k]) count++;
           countEl.textContent = count ? count + (count === 1 ? ' cell' : ' cells') : 'empty';
-          select.value = '-1';
+          setActiveSlot(slot);
         },
         () => { updateCounts(); scheduleSolve(); }
       );
-
-      select.addEventListener('change', () => {
-        const idx = Number(select.value);
-        if (idx < 0) return;
-        pieceGrids[slot] = rowsToGrid(PRESETS[idx].rows);
-        show(pieceGrids[slot]);
-        updateCounts();
-        scheduleSolve();
-      });
 
       turn.addEventListener('click', () => {
         const cells = gridToCells(pieceGrids[slot]);
@@ -1249,21 +1388,81 @@ const EXAMPLE_PIECES = [
         for (const [r, c] of turned) if (r < 5 && c < 5) next[r * 5 + c] = true;
         pieceGrids[slot] = next;
         show(next);
-        select.value = '-1';
+        setActiveSlot(slot);
         updateCounts();
         scheduleSolve();
       });
 
-      clear.addEventListener('click', () => {
+      remove.addEventListener('click', () => {
         pieceGrids[slot] = new Array(25).fill(false);
         show(pieceGrids[slot]);
-        select.value = '-1';
+        setActiveSlot(slot);
         updateCounts();
         scheduleSolve();
       });
 
+      card.addEventListener('click', () => setActiveSlot(slot));
+
+      slotViews.push({ el: card, show });
       show(pieceGrids[slot]);
     }
+    const target = firstEmptySlot();
+    setActiveSlot(target < 0 ? 0 : target);
+  }
+
+  /* ---------- the library of shapes ---------- */
+
+  function shapeMeta(rows) {
+    let cells = 0, maxC = -1, maxR = -1;
+    rows.forEach((row, r) => {
+      for (let c = 0; c < row.length; c++) {
+        if (row[c] === '.' || row[c] === ' ') continue;
+        cells++;
+        if (c > maxC) maxC = c;
+        if (r > maxR) maxR = r;
+      }
+    });
+    return { cells, w: maxC + 1, h: maxR + 1 };
+  }
+
+  function buildLibrary() {
+    const frag = document.createDocumentFragment();
+    for (const group of SHAPE_LIBRARY) {
+      const row = document.createElement('div');
+      row.className = 'lib-row';
+      const name = document.createElement('div');
+      name.className = 'lib-name';
+      name.textContent = group.name;
+
+      const strip = document.createElement('div');
+      strip.className = 'lib-strip';
+      for (const rows of group.shapes) {
+        const meta = shapeMeta(rows);
+        const label = meta.cells + '-cell piece, ' + meta.w + ' wide by ' + meta.h + ' tall';
+        const tile = document.createElement('button');
+        tile.type = 'button';
+        tile.className = 'tile';
+        tile.title = label;
+        tile.setAttribute('aria-label', 'Add a ' + label + ' to the ringed slot');
+
+        const grid = document.createElement('span');
+        grid.className = 'tile-grid';
+        for (let r = 0; r < 5; r++) {
+          for (let c = 0; c < 5; c++) {
+            const cell = document.createElement('i');
+            if (rows[r] && rows[r][c] && rows[r][c] !== '.' && rows[r][c] !== ' ') cell.className = 'on';
+            grid.appendChild(cell);
+          }
+        }
+        tile.appendChild(grid);
+        tile.addEventListener('click', () => fillActiveSlot(rows));
+        strip.appendChild(tile);
+      }
+
+      row.append(name, strip);
+      frag.appendChild(row);
+    }
+    els.lib.appendChild(frag);
   }
 
   /* ---------- painting the board view ---------- */
@@ -1384,15 +1583,19 @@ const EXAMPLE_PIECES = [
 
     if (!pieces.length) {
       lastResult = null;
-      els.status.textContent = 'ready';
+      els.status.textContent = nextRound ? 'board updated' : 'ready';
       els.verdict.className = 'verdict';
-      els.verdict.textContent = 'Draw your tray pieces';
-      els.sub.textContent = 'The solver runs on its own as soon as at least one piece has cells.';
+      els.verdict.textContent = nextRound ? 'Your move is on the board' : 'Draw your tray pieces';
+      els.sub.textContent = nextRound
+        ? 'The tray is empty and ready for the next round — tap three shapes below, and every fit appears here.'
+        : 'The solver runs on its own as soon as at least one piece has cells.';
       els.fits.innerHTML = '';
       els.filters.innerHTML = '';
       els.searchNote.textContent = '';
       els.moreRow.innerHTML = '';
-      els.cards.innerHTML = '<div class="empty">Draw the three pieces from your tray and every fit shows up here.</div>';
+      els.cards.innerHTML = '<div class="empty">' + (nextRound
+        ? 'Next round: tap three shapes in the tray to solve them.'
+        : 'Draw the three pieces from your tray and every fit shows up here.') + '</div>';
       refreshBoardView();
       return;
     }
@@ -1608,17 +1811,22 @@ const EXAMPLE_PIECES = [
   }
 
   function updatePinbar() {
-    const narrow = window.matchMedia('(max-width: 720px)').matches;
-    const show = !!pinned && narrow;
+    const show = !!pinned;
     els.pinbar.hidden = !show;
     document.body.classList.toggle('has-pin', show);
     els.pinbarMini.innerHTML = '';
-    if (!show) return;
-    els.pinbarMini.appendChild(miniBoard(pinned));
-    els.pinbarTitle.textContent = pinned.clears
-      ? 'Clears ' + pinned.clears + (pinned.clears === 1 ? ' line' : ' lines')
-      : 'No line clears';
-    els.pinbarMoves.textContent = compactMoves(pinned);
+    if (show) {
+      const total = lastResult ? lastResult.pieceCount : pinned.seq.length;
+      const complete = pinned.seq.length === total;
+      els.pinbarMini.appendChild(miniBoard(pinned));
+      els.pinbarTitle.textContent = pinned.clears
+        ? 'Clears ' + pinned.clears + (pinned.clears === 1 ? ' line' : ' lines')
+        : (complete ? 'No line clears' : 'Only ' + pinned.seq.length + ' of ' + total + ' pieces fit');
+      els.pinbarDrop.hidden = !complete;
+      els.pinbarMoves.textContent = compactMoves(pinned);
+    }
+    /* Keep the toast clear of the bar, whatever height it wraps to. */
+    document.documentElement.style.setProperty('--pinbar-h', show ? (els.pinbar.offsetHeight + 10) + 'px' : '0px');
   }
 
   function makeCard(sol, index, complete) {
@@ -1670,7 +1878,18 @@ const EXAMPLE_PIECES = [
     el.addEventListener('pointerleave', () => previewOff(sol));
     el.addEventListener('focus', () => previewOn(sol));
     el.addEventListener('blur', () => previewOff(sol));
+    /* One tap previews, two taps in quick succession drop the play on the
+       board. Detected from plain clicks so it behaves the same for mouse,
+       touch and the keyboard. */
+    let lastTap = 0;
     el.addEventListener('click', () => {
+      const now = Date.now();
+      if (now - lastTap < 420) {
+        lastTap = 0;
+        applySolution(sol, complete);
+        return;
+      }
+      lastTap = now;
       if (pinned === sol) { pinned = null; activePreview = null; }
       else { pinned = sol; activePreview = sol; }
       markPinned();
@@ -1723,11 +1942,97 @@ const EXAMPLE_PIECES = [
     refreshBoardView();
   }
 
+  /* ---------- dropping a play onto the board ---------- */
+
+  let toastTimer = null;
+
+  function hideToast() {
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = null;
+    els.toast.hidden = true;
+    els.toastAction.hidden = true;
+    els.toastAction.onclick = null;
+  }
+
+  function toast(message, actionLabel, action) {
+    els.toastMsg.textContent = message;
+    if (actionLabel && action) {
+      els.toastAction.textContent = actionLabel;
+      els.toastAction.hidden = false;
+      els.toastAction.onclick = () => { hideToast(); action(); };
+    } else {
+      els.toastAction.hidden = true;
+      els.toastAction.onclick = null;
+    }
+    els.toast.hidden = false;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, actionLabel ? 9000 : 4200);
+  }
+
+  /* Commit a play: the board becomes what that play leaves behind, and the
+     tray empties so the next three pieces can go in. */
+  function applySolution(sol, complete) {
+    if (!complete) {
+      const stuck = 'That run only places ' + sol.seq.length + ' of your ' +
+        (lastResult ? lastResult.pieceCount : 3) + ' pieces, so there is nothing to drop.';
+      if (!els.optRotate.checked) {
+        toast(stuck + ' Turning pieces on would open this board up.', 'Turn pieces on', () => {
+          els.optRotate.checked = true;
+          runSolve();
+        });
+      } else {
+        toast(stuck);
+      }
+      return;
+    }
+    undoSnapshot = {
+      board: Uint8Array.from(boardState),
+      trays: pieceGrids.map(grid => grid.slice())
+    };
+
+    boardState.set(sol.board);
+    for (let slot = 0; slot < 3; slot++) pieceGrids[slot] = new Array(25).fill(false);
+    pinned = null;
+    activePreview = null;
+    heatData = null;
+    nextRound = true;
+
+    refreshSlots();
+    setActiveSlot(0);
+    markPinned();
+    refreshBoardView();
+    updateCounts();
+    scheduleSolve();
+
+    const lines = sol.clears ? sol.clears + (sol.clears === 1 ? ' line cleared. ' : ' lines cleared. ') : '';
+    toast(lines + 'Board updated — pick the next three pieces.', 'Undo', undoLast);
+
+    const panel = els.boardPanel;
+    if (panel && panel.getBoundingClientRect().top < -4) {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function undoLast() {
+    if (!undoSnapshot) return;
+    boardState.set(undoSnapshot.board);
+    undoSnapshot.trays.forEach((grid, slot) => { pieceGrids[slot] = grid.slice(); });
+    undoSnapshot = null;
+    nextRound = false;
+    refreshSlots();
+    const target = firstEmptySlot();
+    setActiveSlot(target < 0 ? 0 : target);
+    refreshBoardView();
+    updateCounts();
+    scheduleSolve();
+    toast('Put back — board and tray are how they were.');
+  }
+
   /* ---------- example + controls ---------- */
 
   function rebuildTray() {
     els.tray.innerHTML = '';
-    pieceSelects.length = 0;
+    slotViews.length = 0;
     buildTray();
     updateCounts();
   }
@@ -1784,6 +2089,12 @@ const EXAMPLE_PIECES = [
     refreshBoardView();
   });
 
+  document.getElementById('pinbarDrop').addEventListener('click', () => {
+    if (!pinned) return;
+    const total = lastResult ? lastResult.pieceCount : pinned.seq.length;
+    applySolution(pinned, pinned.seq.length === total);
+  });
+
   window.addEventListener('resize', updatePinbar);
 
   document.addEventListener('keydown', (e) => {
@@ -1795,6 +2106,7 @@ const EXAMPLE_PIECES = [
     }
   });
 
+  buildLibrary();
   loadExample();
 })();
 </script>
