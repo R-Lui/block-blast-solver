@@ -12,6 +12,8 @@ Live: https://r-lui.github.io/block-blast-solver/
 - **Real game rules.** Pieces keep their shape (no rotation), and a completed row or column clears straight after the drop. Two switches let you relax either rule to see what it changes.
 - **When nothing fits**, it says so and lists the deepest runs you can actually make, with a per-piece "fits N spots now" readout that shows you which piece is the problem.
 - **A shape library you can read at a glance.** Five strips — Bars, Blocks, Corners, L and T, Steps and strays — each drawn as 5×5 tiles instead of names. Tap one to send it to the ringed slot; the ring moves on by itself, so three taps fill a tray. Slots can also be picked freely, drawn cell by cell, turned, or emptied with ✕.
+- **Corners means corners.** The Corners strip holds the four 3-cell corners and all eight 4-cell corners, including the four that lie flat — bar on top or underneath, foot left or right.
+- **Picks up where you left off.** The board, both switches and every tray slot are kept in the browser's local storage, so a reload (or closing the tab and opening it tomorrow) drops you back into the round in progress. Clearing the board and emptying the tray starts fresh.
 - **Hover a play** to preview it on your board; tap to pin it. A pinned play follows you in a bar at the bottom with a **Drop it** button.
 - **Heat map** tints each empty cell by how often the solutions use it.
 - **Board as text** for fast input — eight rows of `X` and `.`, pasted in either direction.

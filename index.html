@@ -762,7 +762,7 @@
         <span>Hover a play to preview it · double-tap to drop it on the board</span>
       </div>
 
-      <p class="foot">Pieces keep their shape and land anywhere they fit without overlapping. A completed row or column clears straight after the drop, which is why a play can leave the board emptier than the piece that caused it.</p>
+      <p class="foot">Pieces keep their shape and land anywhere they fit without overlapping. A completed row or column clears straight after the drop, which is why a play can leave the board emptier than the piece that caused it. Your board, tray and switches are saved in this browser, so a reload picks the round back up where you left it.</p>
     </section>
   </div>
 </div>
@@ -1126,8 +1126,12 @@ const SHAPE_LIBRARY = [
   {
     name: 'Corners',
     shapes: [
+      /* 3-cell corners */
       ['x.', 'xx'], ['xx', 'x.'], ['.x', 'xx'], ['xx', '.x'],
-      ['x.', 'x.', 'xx'], ['.x', '.x', 'xx'], ['xx', 'x.', 'x.'], ['xx', '.x', '.x']
+      /* 4-cell corners, stem up */
+      ['x.', 'x.', 'xx'], ['.x', '.x', 'xx'], ['xx', 'x.', 'x.'], ['xx', '.x', '.x'],
+      /* 4-cell corners lying flat: bar on top, or bar underneath */
+      ['xxx', 'x..'], ['xxx', '..x'], ['x..', 'xxx'], ['..x', 'xxx']
     ]
   },
   {
@@ -1141,8 +1145,7 @@ const SHAPE_LIBRARY = [
     name: 'Steps and strays',
     shapes: [
       ['.xx', 'xx.'], ['xx.', '.xx'], ['x.', 'xx', '.x'], ['.x', 'xx', 'x.'],
-      ['.x.', 'xxx', '.x.'], ['x.', '.x'], ['x..', '.x.', '..x'], ['..x', '.x.', 'x..'],
-      ['xxx', 'x..'], ['xxx', '..x']
+      ['.x.', 'xxx', '.x.'], ['x.', '.x'], ['x..', '.x.', '..x'], ['..x', '.x.', 'x..']
     ]
   }
 ];
@@ -1592,6 +1595,54 @@ const EXAMPLE_PIECES = [
     return 'Loaded ' + filled + (filled === 1 ? ' block' : ' blocks') + '.';
   }
 
+  /* ---------- remembering the last board ---------- */
+
+  const STORE_KEY = 'block-blast-solver.v1';
+  let restoredActiveSlot = -1;
+
+  /* Board, tray and switches live in localStorage so a reload — or closing
+     the tab and coming back tomorrow — restores the round in progress.
+     Storage can be unavailable (private windows, some file:// setups), so
+     every call is best effort. */
+  function saveState() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        v: 1,
+        board: Array.from(boardState).join(''),
+        trays: pieceGrids.map(grid => grid.map(cell => (cell ? '1' : '0')).join('')),
+        active: activeSlot,
+        clearLines: els.optClear.checked,
+        allowRotate: els.optRotate.checked
+      }));
+    } catch (err) { /* nothing we can do; the app works fine without it */ }
+  }
+
+  function loadState() {
+    let data = null;
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return false;
+      data = JSON.parse(raw);
+    } catch (err) {
+      return false;
+    }
+    if (!data || typeof data.board !== 'string' || data.board.length !== CELL_TOTAL) return false;
+
+    for (let i = 0; i < CELL_TOTAL; i++) boardState[i] = data.board[i] === '1' ? 1 : 0;
+    for (let slot = 0; slot < 3; slot++) {
+      const saved = Array.isArray(data.trays) ? data.trays[slot] : null;
+      const grid = new Array(25).fill(false);
+      if (typeof saved === 'string' && saved.length === 25) {
+        for (let i = 0; i < 25; i++) grid[i] = saved[i] === '1';
+      }
+      pieceGrids[slot] = grid;
+    }
+    els.optClear.checked = data.clearLines !== false;
+    els.optRotate.checked = !!data.allowRotate;
+    restoredActiveSlot = Number.isInteger(data.active) && data.active >= 0 && data.active < 3 ? data.active : -1;
+    return true;
+  }
+
   /* ---------- solving ---------- */
 
   let timer = null;
@@ -1610,6 +1661,7 @@ const EXAMPLE_PIECES = [
 
     activePreview = null;
     pinned = null;
+    saveState();
 
     if (!pieces.length) {
       lastResult = null;
@@ -2149,7 +2201,19 @@ const EXAMPLE_PIECES = [
   });
 
   buildLibrary();
-  loadExample();
+
+  if (loadState()) {
+    /* A round was already in progress when this tab last closed. */
+    rebuildTray();
+    if (restoredActiveSlot >= 0) setActiveSlot(restoredActiveSlot);
+    els.text.value = boardToText();
+    updateCounts();
+    refreshBoardView();
+    scheduleSolve();
+  } else {
+    loadExample();
+  }
+
   updateLeftStick();
 })();
 </script>
