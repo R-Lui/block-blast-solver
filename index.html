@@ -1,0 +1,1801 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Block Blast Solver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root {
+    --ink: #1e111c;
+    --panel: #33202d;
+    --panel-2: #3d2634;
+    --panel-3: #472c3d;
+    --line: #55344b;
+    --line-2: #6b4259;
+    --text: #f7edf4;
+    --muted: #bf9fb4;
+    --tile: #622f43;
+    --tile-frame: #4c2333;
+    --block: #ece2f3;
+    --p1: #8f8cf8;
+    --p1-d: #6a67e0;
+    --p2: #ff9e85;
+    --p2-d: #ef7758;
+    --p3: #79e0b2;
+    --p3-d: #3fbf8c;
+    --pre: #d9c8e6;
+    --best: #ffd479;
+    --radius: 18px;
+    --shadow: 0 20px 44px -28px rgba(0, 0, 0, .95);
+  }
+
+  html, body { margin: 0; }
+
+  body {
+    min-height: 100vh;
+    padding: 0 0 calc(72px + env(safe-area-inset-bottom));
+    color: var(--text);
+    background:
+      radial-gradient(1100px 640px at 12% -12%, #4b2a3e 0%, rgba(75, 42, 62, 0) 62%),
+      radial-gradient(880px 560px at 102% -6%, #3c1f42 0%, rgba(60, 31, 66, 0) 58%),
+      var(--ink);
+    font-family: "Inter Tight", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 30px 20px 0; }
+
+  .top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .eyebrow {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--p1);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: Fraunces, "Iowan Old Style", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(30px, 4.6vw, 46px);
+    line-height: 1.02;
+    letter-spacing: -.015em;
+  }
+
+  h1 em { font-style: italic; font-weight: 500; color: #f0a8c6; }
+
+  .top p { margin: 0; max-width: 44ch; color: var(--muted); font-size: 14px; }
+
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+    gap: 22px;
+    margin-top: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 940px) {
+    .cols { grid-template-columns: minmax(0, 1fr); }
+    .left { position: static !important; }
+  }
+
+  .panel {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+
+  .panel + .panel { margin-top: 20px; }
+
+  .left { position: sticky; top: 20px; }
+
+  /* Grid and flex children default to a min width of auto, which lets one
+     wide control (a <select> of shape names) push the whole page sideways. */
+  .cols > *, .panel, .piece, .piece-tools, .piece-tools select { min-width: 0; }
+
+  h2 {
+    margin: 0;
+    font-family: Fraunces, "Iowan Old Style", Georgia, serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -.01em;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .hint { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+  .hint code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #e6d2e2; }
+
+  .chip {
+    flex: none;
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, .18);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+  button {
+    font: inherit;
+    color: var(--text);
+    background: var(--panel-3);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, transform .12s;
+  }
+
+  button:hover { background: #52334a; border-color: var(--line-2); }
+  button:active { transform: translateY(1px); }
+  button:focus-visible { outline: 2px solid var(--p1); outline-offset: 2px; }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 5px;
+    padding: 10px;
+    border-radius: 16px;
+    background: var(--tile-frame);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, .07), inset 0 -14px 30px rgba(0, 0, 0, .38);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .cell {
+    aspect-ratio: 1 / 1;
+    border-radius: 7px;
+    background: var(--tile);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
+    transition: background .12s, box-shadow .12s;
+  }
+
+  .cell.filled {
+    background: linear-gradient(160deg, #fdfbff, var(--block));
+    box-shadow: inset 0 1px 0 #fff, 0 2px 7px rgba(0, 0, 0, .3);
+  }
+
+  .cell.pv-0 { background: linear-gradient(160deg, #bab8ff, var(--p1-d)); }
+  .cell.pv-1 { background: linear-gradient(160deg, #ffc6b3, var(--p2-d)); }
+  .cell.pv-2 { background: linear-gradient(160deg, #a9f3d0, var(--p3-d)); }
+  .cell.gone { opacity: .5; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .55); }
+
+  .options {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+
+  .options label {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .options input {
+    flex: none;
+    margin: 3px 0 0;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--p1);
+    cursor: pointer;
+  }
+
+  .options b { display: block; color: var(--text); font-weight: 500; }
+
+  .tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+
+  @media (max-width: 460px) {
+    .tray { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .piece {
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, .16);
+  }
+
+  .piece-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .dot.d0 { background: var(--p1); }
+  .dot.d1 { background: var(--p2); }
+  .dot.d2 { background: var(--p3); }
+
+  .piece-name { font-weight: 600; }
+  .piece-count { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .pgrid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+    padding: 4px;
+    border-radius: 9px;
+    background: var(--tile-frame);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .pgrid i { aspect-ratio: 1 / 1; border-radius: 3px; background: var(--tile); }
+  .pgrid i.on { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4); }
+
+  .piece[data-slot="0"] .pgrid i.on { background: linear-gradient(160deg, #bab8ff, var(--p1-d)); }
+  .piece[data-slot="1"] .pgrid i.on { background: linear-gradient(160deg, #ffc6b3, var(--p2-d)); }
+  .piece[data-slot="2"] .pgrid i.on { background: linear-gradient(160deg, #a9f3d0, var(--p3-d)); }
+
+  .piece-tools { display: flex; gap: 6px; margin-top: 8px; }
+
+  .piece-tools select {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    font: inherit;
+    font-size: 12px;
+    color: var(--text);
+    background: var(--panel-3);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 5px 6px;
+  }
+
+  .piece-tools button { flex: none; padding: 5px 9px; border-radius: 8px; font-size: 12px; line-height: 1.3; }
+
+  details.io { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+
+  details.io > summary { cursor: pointer; font-size: 13px; color: var(--muted); list-style: none; }
+  details.io > summary::-webkit-details-marker { display: none; }
+  details.io > summary::before { content: "\25B8  "; color: var(--p1); }
+  details.io[open] > summary::before { content: "\25BE  "; }
+
+  textarea {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.35;
+    letter-spacing: .22em;
+    color: var(--text);
+    background: rgba(0, 0, 0, .3);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    resize: vertical;
+  }
+
+  textarea:focus-visible { outline: 2px solid var(--p1); outline-offset: 1px; }
+
+  .summary {
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, .2);
+  }
+
+  .verdict {
+    margin: 0;
+    font-family: Fraunces, "Iowan Old Style", Georgia, serif;
+    font-size: clamp(21px, 3vw, 27px);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -.01em;
+  }
+
+  .verdict .n { color: var(--best); font-variant-numeric: tabular-nums; }
+  .verdict.dead .n { color: var(--p2); }
+
+  .sub { margin: 6px 0 0; color: var(--muted); font-size: 13.5px; }
+
+  .fits { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+  .fit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fit.stuck { border-color: #7b3a4a; background: rgba(255, 110, 110, .1); color: #ffc4c4; }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 16px 0 12px;
+  }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips button { padding: 6px 12px; font-size: 13px; color: var(--muted); background: transparent; }
+
+  .chips button[aria-pressed="true"] {
+    color: var(--text);
+    background: var(--panel-3);
+    border-color: var(--line-2);
+  }
+
+  .search-note { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(186px, 100%), 1fr));
+    gap: 12px;
+  }
+
+  .card {
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, .18);
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .15s;
+  }
+
+  .card:hover, .card.on {
+    border-color: var(--line-2);
+    background: rgba(255, 255, 255, .05);
+    transform: translateY(-1px);
+  }
+
+  .card.on { box-shadow: 0 0 0 1px var(--line-2), 0 14px 30px -22px #000; }
+  .card:focus-visible { outline: 2px solid var(--p1); outline-offset: 2px; }
+
+  .card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+  .rank { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .badge {
+    margin-left: auto;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(255, 212, 121, .14);
+    border: 1px solid rgba(255, 212, 121, .38);
+    color: var(--best);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .badge.calm { background: rgba(255, 255, 255, .05); border-color: var(--line); color: var(--muted); }
+
+  .mini {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    padding: 4px;
+    border-radius: 9px;
+    background: var(--tile-frame);
+  }
+
+  .mini i { aspect-ratio: 1 / 1; border-radius: 3px; background: var(--tile); }
+  .mini i.o3 { background: var(--pre); }
+  .mini i.o0 { background: linear-gradient(160deg, #bab8ff, var(--p1-d)); }
+  .mini i.o1 { background: linear-gradient(160deg, #ffc6b3, var(--p2-d)); }
+  .mini i.o2 { background: linear-gradient(160deg, #a9f3d0, var(--p3-d)); }
+  .mini i.g { background: transparent; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .34); }
+  .mini i.g0 { box-shadow: inset 0 0 0 1.5px rgba(143, 140, 248, .85); }
+  .mini i.g1 { box-shadow: inset 0 0 0 1.5px rgba(255, 158, 133, .85); }
+  .mini i.g2 { box-shadow: inset 0 0 0 1.5px rgba(121, 224, 178, .85); }
+
+  .moves {
+    margin: 9px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 3px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .moves li { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  .moves .clear-note { color: var(--best); }
+
+  .more { margin-top: 14px; }
+
+  .cards .empty {
+    grid-column: 1 / -1;
+    padding: 26px 18px;
+    text-align: center;
+    color: var(--muted);
+    border: 1px dashed var(--line);
+    border-radius: 14px;
+    font-size: 14px;
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; font-size: 12px; color: var(--muted); }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .swatch.pre { background: var(--pre); }
+  .swatch.ghost { background: transparent; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .4); }
+
+  .foot { margin-top: 26px; color: var(--muted); font-size: 12.5px; max-width: 70ch; }
+
+  .rise { animation: rise .3s cubic-bezier(.2, .7, .3, 1) both; }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* ---------- the pinned play, floating on phones ---------- */
+
+  .pinbar {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid var(--line-2);
+    border-radius: 16px;
+    background: linear-gradient(180deg, #35212f, #2b1a27);
+    box-shadow: 0 20px 44px -18px #000;
+    animation: rise .2s ease both;
+  }
+
+  .pinbar[hidden] { display: none; }
+
+  .pinbar .mini { width: 100px; flex: none; }
+
+  .pinbar-text { min-width: 0; font-size: 12px; color: var(--muted); line-height: 1.35; }
+  .pinbar-text b { display: block; margin-bottom: 2px; color: var(--text); font-size: 13px; font-weight: 600; }
+  .pinbar-text i { font-style: normal; color: var(--best); }
+  .pinbar button { flex: none; padding: 6px 10px; }
+
+  @media (min-width: 721px) {
+    .pinbar { display: none; }
+  }
+
+  /* ---------- phones ---------- */
+
+  @media (max-width: 720px) {
+    .wrap { padding: 18px 12px 0; }
+    body.has-pin { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+    .top { gap: 12px; padding-bottom: 14px; }
+    h1 { font-size: 30px; }
+    .top p { max-width: none; font-size: 13px; }
+    .panel { padding: 14px; border-radius: 16px; }
+    .panel + .panel { margin-top: 14px; }
+
+    .board { gap: 4px; padding: 8px; border-radius: 14px; }
+    .cell { border-radius: 5px; }
+    .pgrid { gap: 2px; padding: 3px; }
+
+    .tray { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .piece { padding: 9px; }
+
+    .summary { padding: 12px 13px; }
+    .verdict { font-size: 21px; }
+    .sub { font-size: 13px; }
+    .chips button { padding: 7px 11px; }
+    .bar { margin: 14px 0 10px; }
+
+    .cards { grid-template-columns: repeat(auto-fill, minmax(min(152px, 100%), 1fr)); gap: 10px; }
+    .card { padding: 9px; }
+    .moves { font-size: 11.5px; gap: 2px; }
+    .moves li { gap: 5px; }
+    .legend { gap: 10px; font-size: 11.5px; }
+
+    textarea { font-size: 12px; letter-spacing: .16em; padding: 9px; }
+  }
+
+  @media (max-width: 380px) {
+    h1 { font-size: 27px; }
+    .tray { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* Touch screens have no hover: keep the pinned state as the only highlight. */
+  @media (hover: none) {
+    .card:hover:not(.on) {
+      border-color: var(--line);
+      background: rgba(0, 0, 0, .18);
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <span class="eyebrow">Board analyser · 8 × 8 · three pieces</span>
+      <h1>Block Blast <em>Solver</em></h1>
+    </div>
+    <p>Draw the board and the three tray pieces. Every play that fits all three shows up below, ranked by lines cleared — plus the best you can manage when nothing fits.</p>
+  </header>
+
+  <div class="cols">
+    <div class="left">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Your board</h2>
+          <span class="chip" id="fillCount">0 blocks</span>
+        </div>
+        <div class="board" id="board" role="group" aria-label="8 by 8 board editor. Drag to add or erase blocks. Keyboard users can load a board from text instead."></div>
+        <p class="hint">Drag across cells to add blocks, drag across filled ones to erase. Right-click erases.</p>
+        <div class="row">
+          <button id="btnClear" type="button">Clear board</button>
+          <button id="btnExample" type="button">Load your screenshot</button>
+        </div>
+
+        <details class="io" id="ioBox">
+          <summary>Board as text</summary>
+          <p class="hint">Eight rows. <code>X # 1</code> is a block, <code>. 0 -</code> is empty.</p>
+          <textarea id="boardText" rows="9" spellcheck="false" aria-label="Board as text"></textarea>
+          <div class="row">
+            <button id="btnLoadText" type="button">Load from text</button>
+            <button id="btnCopyText" type="button">Copy current board</button>
+          </div>
+          <p class="hint" id="ioMsg"></p>
+        </details>
+
+        <div class="options">
+          <label>
+            <input type="checkbox" id="optClear" checked />
+            <span><b>Clear full lines after each drop</b>Game rule — a completed row or column empties straight away.</span>
+          </label>
+          <label>
+            <input type="checkbox" id="optRotate" />
+            <span><b>Let pieces turn</b>The real game doesn't rotate pieces, so this stays off by default.</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Tray</h2>
+          <span class="chip" id="pieceChip">0 of 3 drawn</span>
+        </div>
+        <div class="tray" id="tray"></div>
+        <p class="hint">Tap cells to draw each piece exactly as it sits in the tray, or pick a shape from the list.</p>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Solutions</h2>
+        <span class="chip" id="status">ready</span>
+      </div>
+
+      <div class="summary">
+        <p class="verdict" id="verdict" aria-live="polite">Draw your tray pieces</p>
+        <p class="sub" id="sub">The solver runs on its own as soon as at least one piece has cells.</p>
+        <div class="fits" id="fits"></div>
+      </div>
+
+      <div class="bar">
+        <div class="chips" id="filters"></div>
+        <div class="search-note" id="searchNote"></div>
+      </div>
+
+      <div class="cards" id="cards"></div>
+      <div class="row more" id="moreRow"></div>
+
+      <div class="legend">
+        <span><i class="swatch pre"></i>already on the board</span>
+        <span><i class="swatch ghost"></i>cleared away by this play</span>
+        <span>Hover a play to preview it on your board</span>
+      </div>
+
+      <p class="foot">Pieces keep their shape and land anywhere they fit without overlapping. A completed row or column clears straight after the drop, which is why a play can leave the board emptier than the piece that caused it.</p>
+    </section>
+  </div>
+</div>
+
+<div class="pinbar" id="pinbar" hidden>
+  <div id="pinbarMini"></div>
+  <div class="pinbar-text">
+    <b id="pinbarTitle">Pinned play</b>
+    <span id="pinbarMoves"></span>
+  </div>
+  <button type="button" id="pinbarClose" aria-label="Unpin this play">Unpin</button>
+</div>
+
+<script>
+/* ===================== SOLVER CORE (pure, no DOM) =====================
+   Board: Uint8Array(64), 0 = empty, 1 = filled. Index = r * 8 + c.
+   Piece: { cells: [[r, c], ...] } normalised so min row and column are 0.
+   Every function below is side-effect free, which is what makes the search
+   cheap: the DFS only ever carries an occupancy array.                        */
+const N = 8;
+const CELL_TOTAL = N * N;
+
+function normShape(cells) {
+  let mr = Infinity, mc = Infinity;
+  for (const [r, c] of cells) { if (r < mr) mr = r; if (c < mc) mc = c; }
+  return cells
+    .map(([r, c]) => [r - mr, c - mc])
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+}
+
+function rotateShape(cells) {
+  let maxR = 0;
+  for (const [r] of cells) if (r > maxR) maxR = r;
+  return normShape(cells.map(([r, c]) => [c, maxR - r]));
+}
+
+/* Piece shapes you can actually reach. Block Blast never rotates, so the
+   default list is a single orientation. */
+function shapeVariants(cells, allowRotation) {
+  const out = [];
+  const seen = new Set();
+  let cur = normShape(cells);
+  const turns = allowRotation ? 4 : 1;
+  for (let i = 0; i < turns; i++) {
+    const key = cur.map(p => p[0] + '.' + p[1]).join('|');
+    if (!seen.has(key)) { seen.add(key); out.push(cur); }
+    cur = rotateShape(cur);
+  }
+  return out;
+}
+
+function placementsFor(board, shape) {
+  let h = 0, w = 0;
+  for (const [r, c] of shape) {
+    if (r + 1 > h) h = r + 1;
+    if (c + 1 > w) w = c + 1;
+  }
+  const found = [];
+  for (let r = 0; r <= N - h; r++) {
+    for (let c = 0; c <= N - w; c++) {
+      let ok = true;
+      for (let i = 0; i < shape.length; i++) {
+        if (board[(r + shape[i][0]) * N + (c + shape[i][1])]) { ok = false; break; }
+      }
+      if (!ok) continue;
+      const cells = new Array(shape.length);
+      for (let i = 0; i < shape.length; i++) cells[i] = (r + shape[i][0]) * N + (c + shape[i][1]);
+      found.push({ r, c, cells });
+    }
+  }
+  return found;
+}
+
+function fullLines(board) {
+  const rows = [], cols = [];
+  for (let r = 0; r < N; r++) {
+    let full = true;
+    for (let c = 0; c < N; c++) if (!board[r * N + c]) { full = false; break; }
+    if (full) rows.push(r);
+  }
+  for (let c = 0; c < N; c++) {
+    let full = true;
+    for (let r = 0; r < N; r++) if (!board[r * N + c]) { full = false; break; }
+    if (full) cols.push(c);
+  }
+  return { rows, cols };
+}
+
+/* Replay a list of drops and describe the result well enough to draw it:
+   final occupancy, which piece owns each surviving cell (3 = it was already
+   there), and which cells were wiped by a line clear. */
+function playSequence(startBoard, seq, doClear) {
+  const board = Uint8Array.from(startBoard);
+  const owner = new Int8Array(CELL_TOTAL).fill(-1);
+  for (let i = 0; i < CELL_TOTAL; i++) if (startBoard[i]) owner[i] = 3;
+
+  const ghosts = new Map();
+  const lineLog = [];
+  let clears = 0;
+
+  for (const step of seq) {
+    for (const idx of step.cells) { board[idx] = 1; owner[idx] = step.slot; }
+    if (!doClear) continue;
+    const fl = fullLines(board);
+    if (!fl.rows.length && !fl.cols.length) continue;
+    const doomed = new Set();
+    for (const r of fl.rows) for (let c = 0; c < N; c++) doomed.add(r * N + c);
+    for (const c of fl.cols) for (let r = 0; r < N; r++) doomed.add(r * N + c);
+    for (const idx of doomed) { ghosts.set(idx, owner[idx]); board[idx] = 0; owner[idx] = -1; }
+    clears += fl.rows.length + fl.cols.length;
+    lineLog.push({ rows: fl.rows.slice(), cols: fl.cols.slice() });
+  }
+
+  let filled = 0;
+  for (let i = 0; i < CELL_TOTAL; i++) if (board[i]) filled++;
+  return { board, owner, ghosts, clears, lineLog, filled };
+}
+
+/* ---------- bitboard helpers: the 64 cells packed into two 32-bit halves ---------- */
+const ROW_LO = new Int32Array(N);
+const ROW_HI = new Int32Array(N);
+const COL_LO = new Int32Array(N);
+const COL_HI = new Int32Array(N);
+for (let r = 0; r < N; r++) {
+  let lo = 0, hi = 0;
+  for (let c = 0; c < N; c++) {
+    const i = r * N + c;
+    if (i < 32) lo |= 1 << i; else hi |= 1 << (i - 32);
+  }
+  ROW_LO[r] = lo;
+  ROW_HI[r] = hi;
+}
+for (let c = 0; c < N; c++) {
+  let lo = 0, hi = 0;
+  for (let r = 0; r < N; r++) {
+    const i = r * N + c;
+    if (i < 32) lo |= 1 << i; else hi |= 1 << (i - 32);
+  }
+  COL_LO[c] = lo;
+  COL_HI[c] = hi;
+}
+
+function boardBits(board) {
+  let lo = 0, hi = 0;
+  for (let i = 0; i < CELL_TOTAL; i++) {
+    if (!board[i]) continue;
+    if (i < 32) lo |= 1 << i; else hi |= 1 << (i - 32);
+  }
+  return { lo, hi };
+}
+
+/* Every spot a shape can take on an empty board, as masks. Intersecting those
+   with the live board is two bitwise ANDs instead of a scan per cell. */
+function emptyPlacements(shape) {
+  let h = 0, w = 0;
+  for (const [r, c] of shape) {
+    if (r + 1 > h) h = r + 1;
+    if (c + 1 > w) w = c + 1;
+  }
+  const out = [];
+  for (let r = 0; r <= N - h; r++) {
+    for (let c = 0; c <= N - w; c++) {
+      let lo = 0, hi = 0;
+      for (const [dr, dc] of shape) {
+        const i = (r + dr) * N + (c + dc);
+        if (i < 32) lo |= 1 << i; else hi |= 1 << (i - 32);
+      }
+      out.push({ r, c, lo, hi });
+    }
+  }
+  return out;
+}
+
+/*  Enumerate every play: any drop order, every legal spot, clears applied
+    after each drop. Solutions are de-duplicated by the board they leave
+    behind, so the same position reached two ways is listed once.
+
+    pieces: [{ cells: [[r, c], ...], slot: n }]
+    Returns solutions plus, when nothing fits, the deepest dead ends found. */
+function solve(startBoard, pieces, opts) {
+  opts = opts || {};
+  const allowRotation = !!opts.allowRotation;
+  const doClear = opts.clearLines !== false;
+  const maxSolutions = opts.maxSolutions || 20000;
+  const maxNodes = opts.maxNodes || 1200000;
+  const timeLimitMs = opts.timeLimitMs || 3500;
+
+  const clock = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  const t0 = clock();
+  const start = Uint8Array.from(startBoard);
+  const startBits = boardBits(start);
+  const plans = pieces.map(p => shapeVariants(p.cells, allowRotation)
+    .map(shape => ({ shape, spots: emptyPlacements(shape) })));
+  const allMask = (1 << pieces.length) - 1;
+
+  const solutions = [];
+  const byBoard = new Map(); // high word -> Map(low word -> solution)
+  const best = { depth: 0, list: [] };
+  let nodes = 0;
+  let truncated = false;
+
+  /* The search carries only the packed board, so a step costs two bitwise ORs
+     rather than a fresh array — which is what keeps big enumerations quick. */
+  const pathSlot = new Int8Array(pieces.length);
+  const pathR = new Int8Array(pieces.length);
+  const pathC = new Int8Array(pieces.length);
+  const pathShape = new Array(pieces.length);
+  const pathCleared = new Int8Array(pieces.length);
+
+  function sequence(depth) {
+    const seq = [];
+    for (let d = 0; d < depth; d++) {
+      const shape = pathShape[d];
+      const cells = new Array(shape.length);
+      for (let k = 0; k < shape.length; k++) {
+        cells[k] = (pathR[d] + shape[k][0]) * N + (pathC[d] + shape[k][1]);
+      }
+      seq.push({ slot: pathSlot[d], r: pathR[d], c: pathC[d], cells, cleared: pathCleared[d] });
+    }
+    return seq;
+  }
+
+  function materialise(seq) {
+    const played = playSequence(start, seq, doClear);
+    played.seq = seq.map(s => ({ slot: s.slot, r: s.r, c: s.c, cells: s.cells, cleared: s.cleared }));
+    return played;
+  }
+
+  function recordLeaf(depth, lo, hi) {
+    /* Same board reached another way? Work that out from the packed board
+       before paying to rebuild it — most leaves are repeats. */
+    let clears = 0;
+    for (let d = 0; d < depth; d++) clears += pathCleared[d];
+
+    const hiKey = hi >>> 0;
+    const loKey = lo >>> 0;
+    const bucket = byBoard.get(hiKey);
+    const prev = bucket ? bucket.get(loKey) : undefined;
+    if (prev && prev.clears >= clears) return;
+    if (solutions.length >= maxSolutions) { truncated = true; return; }
+
+    const played = materialise(sequence(depth));
+    if (prev) {
+      const at = solutions.indexOf(prev);
+      if (at >= 0) solutions.splice(at, 1);
+    } else {
+      if (bucket) bucket.set(loKey, played);
+      else byBoard.set(hiKey, new Map([[loKey, played]]));
+    }
+    solutions.push(played);
+  }
+
+  function noteDeadEnd(depth) {
+    if (depth > best.depth) { best.depth = depth; best.list = []; }
+    if (depth === best.depth && best.list.length < 60) best.list.push(sequence(depth));
+  }
+
+  function dfs(lo, hi, used, depth) {
+    if (truncated) return;
+    if (used === allMask) { recordLeaf(depth, lo, hi); return; }
+
+    let anyMove = false;
+    for (let pIdx = 0; pIdx < pieces.length; pIdx++) {
+      if (used & (1 << pIdx)) continue;
+      for (const plan of plans[pIdx]) {
+        const spots = plan.spots;
+        for (let s = 0; s < spots.length; s++) {
+          const spot = spots[s];
+          if ((lo & spot.lo) !== 0 || (hi & spot.hi) !== 0) continue;
+
+          anyMove = true;
+          if (++nodes > maxNodes) { truncated = true; return; }
+          if ((nodes & 2047) === 0 && clock() - t0 > timeLimitMs) { truncated = true; return; }
+
+          let nlo = lo | spot.lo;
+          let nhi = hi | spot.hi;
+          let cleared = 0;
+
+          if (doClear) {
+            /* Lines are read off the board as it stands right after the drop,
+               then every completed one goes at once — so a row and a column
+               finished by the same piece both count. */
+            let wipeLo = 0, wipeHi = 0;
+            for (let r = 0; r < N; r++) {
+              if ((nlo & ROW_LO[r]) === ROW_LO[r] && (nhi & ROW_HI[r]) === ROW_HI[r]) {
+                wipeLo |= ROW_LO[r]; wipeHi |= ROW_HI[r]; cleared++;
+              }
+            }
+            for (let c = 0; c < N; c++) {
+              if ((nlo & COL_LO[c]) === COL_LO[c] && (nhi & COL_HI[c]) === COL_HI[c]) {
+                wipeLo |= COL_LO[c]; wipeHi |= COL_HI[c]; cleared++;
+              }
+            }
+            if (cleared) { nlo &= ~wipeLo; nhi &= ~wipeHi; }
+          }
+
+          pathSlot[depth] = pieces[pIdx].slot;
+          pathR[depth] = spot.r;
+          pathC[depth] = spot.c;
+          pathShape[depth] = plan.shape;
+          pathCleared[depth] = cleared;
+
+          dfs(nlo, nhi, used | (1 << pIdx), depth + 1);
+          if (truncated) return;
+        }
+      }
+    }
+
+    if (!anyMove && depth > 0) noteDeadEnd(depth);
+  }
+
+  dfs(startBits.lo, startBits.hi, 0, 0);
+
+  solutions.sort((a, b) => b.clears - a.clears || a.filled - b.filled);
+
+  if (solutions.length) {
+    best.depth = -1;
+    best.list = [];
+  } else {
+    best.list = best.list
+      .map(materialise)
+      .sort((a, b) => b.clears - a.clears || a.filled - b.filled);
+  }
+
+  return {
+    solutions,
+    best,
+    truncated,
+    nodes,
+    ms: Math.round((clock() - t0) * 10) / 10,
+    pieceCount: pieces.length
+  };
+}
+
+/* ===================== SHAPES FOR THE PICKER ===================== */
+const PRESETS = [
+  { n: '1 × 1 dot', rows: ['x'] },
+  { n: '1 × 2', rows: ['xx'] },
+  { n: '1 × 3', rows: ['xxx'] },
+  { n: '1 × 4', rows: ['xxxx'] },
+  { n: '1 × 5 bar', rows: ['xxxxx'] },
+  { n: '2 tall', rows: ['x', 'x'] },
+  { n: '3 tall', rows: ['x', 'x', 'x'] },
+  { n: '4 tall', rows: ['x', 'x', 'x', 'x'] },
+  { n: '5 tall bar', rows: ['x', 'x', 'x', 'x', 'x'] },
+  { n: '2 × 2 square', rows: ['xx', 'xx'] },
+  { n: '2 × 3 block', rows: ['xxx', 'xxx'] },
+  { n: '3 × 2 block', rows: ['xx', 'xx', 'xx'] },
+  { n: '3 × 3 square', rows: ['xxx', 'xxx', 'xxx'] },
+  { n: 'corner', rows: ['x.', 'xx'] },
+  { n: 'corner, flipped', rows: ['xx', 'x.'] },
+  { n: 'corner, other way', rows: ['.x', 'xx'] },
+  { n: 'corner, other way flipped', rows: ['xx', '.x'] },
+  { n: 'L (5)', rows: ['x..', 'x..', 'xxx'] },
+  { n: 'L (5) flipped', rows: ['xxx', 'x..', 'x..'] },
+  { n: 'J (5)', rows: ['xxx', '..x', '..x'] },
+  { n: 'J (5) flipped', rows: ['..x', '..x', 'xxx'] },
+  { n: 'T', rows: ['xxx', '.x.'] },
+  { n: 'T upside down', rows: ['.x.', 'xxx'] },
+  { n: 'T on its side', rows: ['x.', 'xx', 'x.'] },
+  { n: 'T on its other side', rows: ['.x', 'xx', '.x'] },
+  { n: 'S', rows: ['.xx', 'xx.'] },
+  { n: 'Z', rows: ['xx.', '.xx'] },
+  { n: 'S upright', rows: ['x.', 'xx', '.x'] },
+  { n: 'Z upright', rows: ['.x', 'xx', 'x.'] },
+  { n: 'plus', rows: ['.x.', 'xxx', '.x.'] },
+  { n: 'diagonal 2', rows: ['x.', '.x'] },
+  { n: 'diagonal 3', rows: ['x..', '.x.', '..x'] },
+  { n: 'diagonal 3 flipped', rows: ['..x', '.x.', 'x..'] },
+  { n: 'bar with a foot', rows: ['xxx', 'x..'] },
+  { n: 'bar with a foot flipped', rows: ['xxx', '..x'] },
+  { n: 'corner 4', rows: ['x.', 'x.', 'xx'] },
+  { n: 'corner 4 flipped', rows: ['.x', '.x', 'xx'] }
+];
+
+/* The position from the screenshot this tool was built for. */
+const EXAMPLE_BOARD = [
+  '........',
+  '........',
+  '......X.',
+  '..XX..XX',
+  'XXX.XXXX',
+  '........',
+  'XXX.XX.X',
+  'XXX.XX..'
+];
+
+const EXAMPLE_PIECES = [
+  ['x', 'x', 'x', 'x', 'x'],
+  ['xxx', 'xxx'],
+  ['xxx', '.x.']
+];
+(function () {
+  'use strict';
+
+  const els = {
+    board: document.getElementById('board'),
+    tray: document.getElementById('tray'),
+    cards: document.getElementById('cards'),
+    filters: document.getElementById('filters'),
+    verdict: document.getElementById('verdict'),
+    sub: document.getElementById('sub'),
+    fits: document.getElementById('fits'),
+    status: document.getElementById('status'),
+    fillCount: document.getElementById('fillCount'),
+    pieceChip: document.getElementById('pieceChip'),
+    searchNote: document.getElementById('searchNote'),
+    moreRow: document.getElementById('moreRow'),
+    ioMsg: document.getElementById('ioMsg'),
+    ioBox: document.getElementById('ioBox'),
+    text: document.getElementById('boardText'),
+    optClear: document.getElementById('optClear'),
+    optRotate: document.getElementById('optRotate'),
+    pinbar: document.getElementById('pinbar'),
+    pinbarMini: document.getElementById('pinbarMini'),
+    pinbarMoves: document.getElementById('pinbarMoves'),
+    pinbarTitle: document.getElementById('pinbarTitle')
+  };
+
+  const boardState = new Uint8Array(CELL_TOTAL);
+  const pieceGrids = [new Array(25).fill(false), new Array(25).fill(false), new Array(25).fill(false)];
+  const pieceSelects = [];
+
+  let lastResult = null;
+  let filterMode = 'all';
+  let shownCount = 48;
+  let activePreview = null;
+  let pinned = null;
+  let heatOn = false;
+  let heatData = null;
+  let searchBoost = { maxNodes: 1200000, maxSolutions: 20000, timeLimitMs: 3500 };
+
+  /* ---------- drag to paint, shared by the board and the tray ---------- */
+
+  function makePaintable(el, count, getVal, setVal, onDone) {
+    let painting = null;
+
+    const idxAt = (x, y) => {
+      const node = document.elementFromPoint(x, y);
+      const cell = node && node.closest ? node.closest('[data-i]') : null;
+      if (!cell || !el.contains(cell)) return -1;
+      const i = Number(cell.dataset.i);
+      return i >= 0 && i < count ? i : -1;
+    };
+
+    el.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const i = idxAt(e.clientX, e.clientY);
+      if (i < 0) return;
+      painting = getVal(i) ? 0 : 1;
+      setVal(i, painting);
+      try { el.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
+      e.preventDefault();
+    });
+
+    el.addEventListener('pointermove', (e) => {
+      if (painting === null) return;
+      const i = idxAt(e.clientX, e.clientY);
+      if (i < 0) return;
+      if (getVal(i) !== Boolean(painting)) setVal(i, painting);
+      e.preventDefault();
+    });
+
+    const stop = () => {
+      if (painting === null) return;
+      painting = null;
+      if (onDone) onDone();
+    };
+    el.addEventListener('pointerup', stop);
+    el.addEventListener('pointercancel', stop);
+
+    el.addEventListener('contextmenu', (e) => {
+      const i = idxAt(e.clientX, e.clientY);
+      if (i < 0) return;
+      setVal(i, 0);
+      if (onDone) onDone();
+      e.preventDefault();
+    });
+  }
+
+  const boardCells = [];
+  for (let i = 0; i < CELL_TOTAL; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.i = String(i);
+    boardCells.push(cell);
+    els.board.appendChild(cell);
+  }
+
+  makePaintable(
+    els.board, CELL_TOTAL,
+    (i) => boardState[i],
+    (i, v) => {
+      boardState[i] = v ? 1 : 0;
+      boardCells[i].classList.toggle('filled', !!v);
+      updateFillCount();
+    },
+    scheduleSolve
+  );
+
+  /* ---------- tray ---------- */
+
+  function gridToCells(grid) {
+    const cells = [];
+    for (let i = 0; i < 25; i++) if (grid[i]) cells.push([Math.floor(i / 5), i % 5]);
+    return cells.length ? normShape(cells) : [];
+  }
+
+  function rowsToGrid(rows) {
+    const grid = new Array(25).fill(false);
+    rows.forEach((row, r) => {
+      for (let c = 0; c < row.length && c < 5; c++) {
+        if (row[c] !== '.' && row[c] !== ' ') grid[r * 5 + c] = true;
+      }
+    });
+    return grid;
+  }
+
+  function buildTray() {
+    for (let slot = 0; slot < 3; slot++) {
+      const card = document.createElement('div');
+      card.className = 'piece';
+      card.dataset.slot = String(slot);
+
+      const head = document.createElement('div');
+      head.className = 'piece-head';
+      head.innerHTML = '<i class="dot d' + slot + '"></i><span class="piece-name">P' + (slot + 1) + '</span><span class="piece-count"></span>';
+      const countEl = head.querySelector('.piece-count');
+
+      const grid = document.createElement('div');
+      grid.className = 'pgrid';
+      const gridCells = [];
+      for (let i = 0; i < 25; i++) {
+        const cell = document.createElement('i');
+        cell.dataset.i = String(i);
+        gridCells.push(cell);
+        grid.appendChild(cell);
+      }
+
+      const tools = document.createElement('div');
+      tools.className = 'piece-tools';
+
+      const select = document.createElement('select');
+      select.setAttribute('aria-label', 'Shape for piece ' + (slot + 1));
+      const custom = document.createElement('option');
+      custom.value = '-1';
+      custom.textContent = 'Custom';
+      select.appendChild(custom);
+      PRESETS.forEach((preset, idx) => {
+        const option = document.createElement('option');
+        option.value = String(idx);
+        option.textContent = preset.n;
+        select.appendChild(option);
+      });
+
+      const turn = document.createElement('button');
+      turn.type = 'button';
+      turn.title = 'Turn this shape in the editor';
+      turn.setAttribute('aria-label', 'Turn piece ' + (slot + 1));
+      turn.textContent = '\u27F3';
+
+      const clear = document.createElement('button');
+      clear.type = 'button';
+      clear.setAttribute('aria-label', 'Empty piece ' + (slot + 1));
+      clear.textContent = 'Clear';
+
+      tools.append(select, turn, clear);
+      card.append(head, grid, tools);
+      els.tray.appendChild(card);
+      pieceSelects.push(select);
+
+      const show = (state) => {
+        let count = 0;
+        for (let i = 0; i < 25; i++) {
+          gridCells[i].classList.toggle('on', state[i]);
+          if (state[i]) count++;
+        }
+        countEl.textContent = count ? count + (count === 1 ? ' cell' : ' cells') : 'empty';
+      };
+
+      makePaintable(
+        grid, 25,
+        (i) => pieceGrids[slot][i],
+        (i, v) => {
+          pieceGrids[slot][i] = !!v;
+          gridCells[i].classList.toggle('on', !!v);
+          let count = 0;
+          for (let k = 0; k < 25; k++) if (pieceGrids[slot][k]) count++;
+          countEl.textContent = count ? count + (count === 1 ? ' cell' : ' cells') : 'empty';
+          select.value = '-1';
+        },
+        () => { updateCounts(); scheduleSolve(); }
+      );
+
+      select.addEventListener('change', () => {
+        const idx = Number(select.value);
+        if (idx < 0) return;
+        pieceGrids[slot] = rowsToGrid(PRESETS[idx].rows);
+        show(pieceGrids[slot]);
+        updateCounts();
+        scheduleSolve();
+      });
+
+      turn.addEventListener('click', () => {
+        const cells = gridToCells(pieceGrids[slot]);
+        if (!cells.length) return;
+        let maxR = 0;
+        for (const [r] of cells) if (r > maxR) maxR = r;
+        const turned = normShape(cells.map(([r, c]) => [c, maxR - r]));
+        const next = new Array(25).fill(false);
+        for (const [r, c] of turned) if (r < 5 && c < 5) next[r * 5 + c] = true;
+        pieceGrids[slot] = next;
+        show(next);
+        select.value = '-1';
+        updateCounts();
+        scheduleSolve();
+      });
+
+      clear.addEventListener('click', () => {
+        pieceGrids[slot] = new Array(25).fill(false);
+        show(pieceGrids[slot]);
+        select.value = '-1';
+        updateCounts();
+        scheduleSolve();
+      });
+
+      show(pieceGrids[slot]);
+    }
+  }
+
+  /* ---------- painting the board view ---------- */
+
+  function refreshBoardView() {
+    for (let i = 0; i < CELL_TOTAL; i++) {
+      const cell = boardCells[i];
+      cell.className = boardState[i] ? 'cell filled' : 'cell';
+      cell.style.background = '';
+      cell.style.boxShadow = '';
+      cell.style.opacity = '';
+    }
+    if (activePreview) applyPreview(activePreview);
+    else if (heatOn && heatData) applyHeat();
+  }
+
+  function applyPreview(sol) {
+    for (const step of sol.seq) {
+      for (const idx of step.cells) {
+        const cell = boardCells[idx];
+        cell.classList.add('pv-' + step.slot);
+        if (!sol.board[idx]) cell.classList.add('gone');
+      }
+    }
+  }
+
+  /* How often each empty cell gets used across every solution. Counted once
+     per solve, not on every repaint, because the list can run to thousands. */
+  function computeHeat() {
+    const counts = new Int32Array(CELL_TOTAL);
+    let max = 0;
+    for (const sol of lastResult.solutions) {
+      for (let i = 0; i < CELL_TOTAL; i++) {
+        const owner = sol.owner[i];
+        if (owner >= 0 && owner < 3) { counts[i]++; if (counts[i] > max) max = counts[i]; }
+      }
+    }
+    return max ? { counts, max } : null;
+  }
+
+  function applyHeat() {
+    for (let i = 0; i < CELL_TOTAL; i++) {
+      const n = heatData.counts[i];
+      if (!n || boardState[i]) continue;
+      const a = (0.16 + 0.6 * (n / heatData.max)).toFixed(2);
+      boardCells[i].style.background =
+        'linear-gradient(160deg, rgba(186,184,255,' + a + '), rgba(106,103,224,' + a + '))';
+      boardCells[i].style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,.25)';
+    }
+  }
+
+  function updateFillCount() {
+    let n = 0;
+    for (let i = 0; i < CELL_TOTAL; i++) if (boardState[i]) n++;
+    els.fillCount.textContent = n + (n === 1 ? ' block' : ' blocks');
+  }
+
+  function updateCounts() {
+    updateFillCount();
+    let drawn = 0;
+    for (const grid of pieceGrids) {
+      let any = false;
+      for (let i = 0; i < 25; i++) if (grid[i]) { any = true; break; }
+      if (any) drawn++;
+    }
+    els.pieceChip.textContent = drawn + ' of 3 drawn';
+  }
+
+  /* ---------- text in and out ---------- */
+
+  function boardToText() {
+    const lines = [];
+    for (let r = 0; r < N; r++) {
+      let line = '';
+      for (let c = 0; c < N; c++) line += boardState[r * N + c] ? 'X' : '.';
+      lines.push(line);
+    }
+    return lines.join('\n');
+  }
+
+  function loadBoardFromText(text) {
+    const rows = text.split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0);
+    if (!rows.length) return 'Nothing to read — paste eight rows of X and .';
+    const parsed = rows.slice(0, N).map(row => row.replace(/\s+/g, ''));
+    for (let r = 0; r < N; r++) {
+      const row = parsed[r] || '';
+      for (let c = 0; c < N; c++) {
+        const ch = row[c] || '.';
+        boardState[r * N + c] = (ch === '.' || ch === '0' || ch === '-' || ch === '_') ? 0 : 1;
+      }
+    }
+    let filled = 0;
+    for (let i = 0; i < CELL_TOTAL; i++) if (boardState[i]) filled++;
+    updateCounts();
+    refreshBoardView();
+    scheduleSolve();
+    return 'Loaded ' + filled + (filled === 1 ? ' block' : ' blocks') + '.';
+  }
+
+  /* ---------- solving ---------- */
+
+  let timer = null;
+  function scheduleSolve() {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(runSolve, 80);
+  }
+
+  function runSolve() {
+    timer = null;
+    const pieces = [];
+    for (let slot = 0; slot < 3; slot++) {
+      const cells = gridToCells(pieceGrids[slot]);
+      if (cells.length) pieces.push({ cells, slot });
+    }
+
+    activePreview = null;
+    pinned = null;
+
+    if (!pieces.length) {
+      lastResult = null;
+      els.status.textContent = 'ready';
+      els.verdict.className = 'verdict';
+      els.verdict.textContent = 'Draw your tray pieces';
+      els.sub.textContent = 'The solver runs on its own as soon as at least one piece has cells.';
+      els.fits.innerHTML = '';
+      els.filters.innerHTML = '';
+      els.searchNote.textContent = '';
+      els.moreRow.innerHTML = '';
+      els.cards.innerHTML = '<div class="empty">Draw the three pieces from your tray and every fit shows up here.</div>';
+      refreshBoardView();
+      return;
+    }
+
+    lastResult = solve(boardState, pieces, {
+      allowRotation: els.optRotate.checked,
+      clearLines: els.optClear.checked,
+      maxNodes: searchBoost.maxNodes,
+      maxSolutions: searchBoost.maxSolutions,
+      timeLimitMs: searchBoost.timeLimitMs
+    });
+    shownCount = 48;
+    render();
+  }
+
+  /* ---------- summary ---------- */
+
+  function fitChip(slot) {
+    const el = document.createElement('span');
+    el.className = 'fit';
+    const dot = document.createElement('i');
+    dot.className = 'dot d' + slot;
+    const label = document.createElement('span');
+    const cells = gridToCells(pieceGrids[slot]);
+
+    if (!cells.length) {
+      label.textContent = 'P' + (slot + 1) + ' not drawn';
+      el.classList.add('stuck');
+    } else {
+      const seen = new Set();
+      for (const shape of shapeVariants(cells, els.optRotate.checked)) {
+        for (const spot of placementsFor(boardState, shape)) seen.add(spot.cells.join(','));
+      }
+      label.textContent = 'P' + (slot + 1) + ' fits ' + seen.size + (seen.size === 1 ? ' spot' : ' spots') + ' now';
+      if (!seen.size) el.classList.add('stuck');
+    }
+
+    el.append(dot, label);
+    return el;
+  }
+
+  function renderFits() {
+    els.fits.innerHTML = '';
+    for (let slot = 0; slot < 3; slot++) {
+      if (gridToCells(pieceGrids[slot]).length) els.fits.appendChild(fitChip(slot));
+    }
+  }
+
+  function renderSummary() {
+    const r = lastResult;
+    const sols = r.solutions;
+    const count = r.pieceCount;
+    const all = count === 3 ? 'all three pieces' : 'all ' + count + (count === 1 ? ' piece' : ' pieces');
+
+    els.sub.className = 'sub';
+    els.verdict.className = 'verdict';
+
+    if (sols.length) {
+      const bestClears = sols.reduce((m, s) => Math.max(m, s.clears), 0);
+      els.status.textContent = 'solved';
+      els.verdict.innerHTML = '<span class="n">' + sols.length + '</span> ' +
+        (sols.length === 1 ? 'way' : 'ways') + ' to place ' + all;
+      els.sub.textContent = bestClears > 0
+        ? 'Best clears ' + bestClears + (bestClears === 1 ? ' line' : ' lines') + '.' +
+          (r.truncated ? ' Search hit its cap, so there may be more.' : ' Every one of them is listed below.')
+        : 'None of them clear a line — each play just fills space.';
+    } else if (r.best.depth > 0) {
+      els.status.textContent = 'stuck';
+      els.verdict.className = 'verdict dead';
+      els.verdict.innerHTML = 'No play fits <span class="n">' + all + '</span>';
+      els.sub.textContent = 'The deepest you can get is ' + r.best.depth + ' of ' + count +
+        '. Those runs are listed below — anything red above is a piece with nowhere to go.';
+    } else {
+      els.status.textContent = 'nothing fits';
+      els.verdict.className = 'verdict dead';
+      els.verdict.innerHTML = '<span class="n">Nothing</span> fits this board';
+      els.sub.textContent = 'Not one of your pieces has a legal spot right now.';
+    }
+
+    renderFits();
+  }
+
+  /* ---------- filters ---------- */
+
+  function chip(label, pressed, onClick, title) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    if (title) b.title = title;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  function visibleSolutions() {
+    const sols = lastResult.solutions;
+    if (filterMode === 'best') {
+      const bestClears = sols.reduce((m, s) => Math.max(m, s.clears), 0);
+      return sols.filter(s => s.clears === bestClears);
+    }
+    if (filterMode === 'clearing') return sols.filter(s => s.clears > 0);
+    return sols;
+  }
+
+  function renderFilters() {
+    els.filters.innerHTML = '';
+    const sols = lastResult.solutions;
+
+    if (sols.length) {
+      const bestClears = sols.reduce((m, s) => Math.max(m, s.clears), 0);
+      const bestCount = sols.filter(s => s.clears === bestClears).length;
+      const clearingCount = sols.filter(s => s.clears > 0).length;
+
+      els.filters.appendChild(chip('All ' + sols.length, filterMode === 'all', () => {
+        filterMode = 'all'; shownCount = 48; renderFilters(); renderCards();
+      }));
+
+      if (clearingCount) {
+        els.filters.appendChild(chip('Clears a line ' + clearingCount, filterMode === 'clearing', () => {
+          filterMode = 'clearing'; shownCount = 48; renderFilters(); renderCards();
+        }));
+      }
+
+      if (bestClears > 0) {
+        els.filters.appendChild(chip('Best only ' + bestCount, filterMode === 'best', () => {
+          filterMode = 'best'; shownCount = 48; renderFilters(); renderCards();
+        }));
+      }
+
+      els.filters.appendChild(chip(heatOn ? 'Heat map on' : 'Heat map', heatOn, () => {
+        heatOn = !heatOn;
+        if (heatOn && activePreview && !pinned) activePreview = null;
+        renderFilters();
+        refreshBoardView();
+      }, 'Tint each empty cell by how often the solutions use it'));
+    }
+
+    const parts = ['searched ' + lastResult.nodes.toLocaleString() + ' placements in ' + lastResult.ms + ' ms'];
+    if (lastResult.truncated) parts.push('hit the search cap');
+    els.searchNote.textContent = parts.join(' · ');
+
+    els.moreRow.innerHTML = '';
+    if (lastResult.truncated) {
+      const deeper = document.createElement('button');
+      deeper.type = 'button';
+      deeper.textContent = 'Search deeper';
+      deeper.title = 'Raise the caps and run the whole search again';
+      deeper.addEventListener('click', () => {
+        searchBoost = { maxNodes: searchBoost.maxNodes * 4, maxSolutions: searchBoost.maxSolutions * 4, timeLimitMs: 15000 };
+        runSolve();
+      });
+      els.moreRow.appendChild(deeper);
+    }
+  }
+
+  /* ---------- cards ---------- */
+
+  function span(nums, unit) {
+    const lo = Math.min.apply(null, nums);
+    const hi = Math.max.apply(null, nums);
+    if (lo === hi) return unit + ' ' + (lo + 1);
+    return unit + 's ' + (lo + 1) + '\u2013' + (hi + 1);
+  }
+
+  function miniBoard(sol) {
+    const m = document.createElement('div');
+    m.className = 'mini';
+    for (let i = 0; i < CELL_TOTAL; i++) {
+      const cell = document.createElement('i');
+      const owner = sol.owner[i];
+      if (owner === 3) cell.className = 'o3';
+      else if (owner >= 0) cell.className = 'o' + owner;
+      else if (sol.ghosts.has(i)) {
+        const g = sol.ghosts.get(i);
+        cell.className = 'g' + (g >= 0 && g < 3 ? ' g' + g : '');
+      }
+      m.appendChild(cell);
+    }
+    return m;
+  }
+
+  function previewOn(sol) {
+    activePreview = sol;
+    refreshBoardView();
+  }
+
+  function previewOff(sol) {
+    if (pinned === sol) return;
+    if (activePreview === sol) {
+      activePreview = null;
+      refreshBoardView();
+    }
+  }
+
+  function markPinned() {
+    const cards = els.cards.querySelectorAll('.card');
+    for (const card of cards) card.classList.toggle('on', card._sol === pinned);
+    updatePinbar();
+  }
+
+  /* On a phone the board scrolls out of sight, so a pinned play follows you
+     in a small bar at the bottom instead. */
+  function compactMoves(sol) {
+    return sol.seq.map((step) => {
+      const rows = step.cells.map(i => Math.floor(i / N));
+      const cols = step.cells.map(i => i % N);
+      const r0 = Math.min.apply(null, rows), r1 = Math.max.apply(null, rows);
+      const c0 = Math.min.apply(null, cols), c1 = Math.max.apply(null, cols);
+      return 'P' + (step.slot + 1) +
+        ' r' + (r0 === r1 ? r0 + 1 : (r0 + 1) + '\u2013' + (r1 + 1)) +
+        ' c' + (c0 === c1 ? c0 + 1 : (c0 + 1) + '\u2013' + (c1 + 1));
+    }).join(' \u00B7 ');
+  }
+
+  function updatePinbar() {
+    const narrow = window.matchMedia('(max-width: 720px)').matches;
+    const show = !!pinned && narrow;
+    els.pinbar.hidden = !show;
+    document.body.classList.toggle('has-pin', show);
+    els.pinbarMini.innerHTML = '';
+    if (!show) return;
+    els.pinbarMini.appendChild(miniBoard(pinned));
+    els.pinbarTitle.textContent = pinned.clears
+      ? 'Clears ' + pinned.clears + (pinned.clears === 1 ? ' line' : ' lines')
+      : 'No line clears';
+    els.pinbarMoves.textContent = compactMoves(pinned);
+  }
+
+  function makeCard(sol, index, complete) {
+    const el = document.createElement('article');
+    el.className = 'card rise';
+    el.tabIndex = 0;
+    el.style.animationDelay = Math.min(index * 12, 240) + 'ms';
+    el._sol = sol;
+    el.setAttribute('aria-label', 'Solution ' + (index + 1) + (sol.clears ? ', clears ' + sol.clears : ''));
+
+    const top = document.createElement('div');
+    top.className = 'card-top';
+    const rank = document.createElement('span');
+    rank.className = 'rank';
+    rank.textContent = '#' + (index + 1);
+    const badge = document.createElement('span');
+    if (sol.clears > 0) {
+      badge.className = 'badge';
+      badge.textContent = sol.clears + (sol.clears === 1 ? ' line' : ' lines');
+    } else {
+      badge.className = 'badge calm';
+      badge.textContent = complete ? 'no clear' : sol.seq.length + ' of ' + lastResult.pieceCount + ' pieces';
+    }
+    top.append(rank, badge);
+
+    const moves = document.createElement('ul');
+    moves.className = 'moves';
+    sol.seq.forEach((step) => {
+      const li = document.createElement('li');
+      const dot = document.createElement('i');
+      dot.className = 'dot d' + step.slot;
+      const text = document.createElement('span');
+      const rows = step.cells.map(i => Math.floor(i / N));
+      const cols = step.cells.map(i => i % N);
+      text.textContent = 'P' + (step.slot + 1) + ' → ' + span(rows, 'row') + ', ' + span(cols, 'col');
+      li.append(dot, text);
+      if (step.cleared) {
+        const note = document.createElement('span');
+        note.className = 'clear-note';
+        note.textContent = '+' + step.cleared;
+        li.appendChild(note);
+      }
+      moves.appendChild(li);
+    });
+
+    el.append(top, miniBoard(sol), moves);
+
+    el.addEventListener('pointerenter', () => previewOn(sol));
+    el.addEventListener('pointerleave', () => previewOff(sol));
+    el.addEventListener('focus', () => previewOn(sol));
+    el.addEventListener('blur', () => previewOff(sol));
+    el.addEventListener('click', () => {
+      if (pinned === sol) { pinned = null; activePreview = null; }
+      else { pinned = sol; activePreview = sol; }
+      markPinned();
+      refreshBoardView();
+    });
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        el.click();
+      }
+    });
+
+    return el;
+  }
+
+  function renderCards() {
+    const complete = lastResult.solutions.length > 0;
+    const list = complete ? visibleSolutions() : lastResult.best.list;
+    const cap = complete ? shownCount : 12;
+    const slice = list.slice(0, cap);
+
+    els.cards.innerHTML = '';
+    if (!slice.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = complete
+        ? 'No play in this filter.'
+        : 'No piece has a legal spot on this board.';
+      els.cards.appendChild(empty);
+      return;
+    }
+
+    slice.forEach((sol, i) => els.cards.appendChild(makeCard(sol, i, complete)));
+
+    const more = els.moreRow.querySelector('button');
+    if (complete && list.length > slice.length) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = 'Show ' + Math.min(48, list.length - slice.length) + ' more of ' + list.length;
+      b.addEventListener('click', () => { shownCount += 48; renderCards(); });
+      els.moreRow.insertBefore(b, more);
+    }
+  }
+
+  function render() {
+    renderSummary();
+    renderFilters();
+    renderCards();
+    heatData = lastResult.solutions.length ? computeHeat() : null;
+    refreshBoardView();
+  }
+
+  /* ---------- example + controls ---------- */
+
+  function rebuildTray() {
+    els.tray.innerHTML = '';
+    pieceSelects.length = 0;
+    buildTray();
+    updateCounts();
+  }
+
+  function loadExample() {
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        boardState[r * N + c] = EXAMPLE_BOARD[r][c] === 'X' ? 1 : 0;
+      }
+    }
+    EXAMPLE_PIECES.forEach((rows, slot) => { pieceGrids[slot] = rowsToGrid(rows); });
+    rebuildTray();
+    els.text.value = boardToText();
+    els.ioMsg.textContent = '';
+    updateCounts();
+    refreshBoardView();
+    scheduleSolve();
+  }
+
+  document.getElementById('btnClear').addEventListener('click', () => {
+    boardState.fill(0);
+    els.text.value = boardToText();
+    updateCounts();
+    refreshBoardView();
+    scheduleSolve();
+  });
+
+  document.getElementById('btnExample').addEventListener('click', loadExample);
+
+  document.getElementById('btnLoadText').addEventListener('click', () => {
+    els.ioMsg.textContent = loadBoardFromText(els.text.value);
+  });
+
+  document.getElementById('btnCopyText').addEventListener('click', () => {
+    els.text.value = boardToText();
+    els.text.select();
+    const done = () => { els.ioMsg.textContent = 'Board copied as text.'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(els.text.value).then(done, () => {
+        els.ioMsg.textContent = 'Select and copy the text above.';
+      });
+    } else {
+      els.ioMsg.textContent = 'Select and copy the text above.';
+    }
+  });
+
+  els.optClear.addEventListener('change', runSolve);
+  els.optRotate.addEventListener('change', runSolve);
+
+  document.getElementById('pinbarClose').addEventListener('click', () => {
+    pinned = null;
+    activePreview = null;
+    markPinned();
+    refreshBoardView();
+  });
+
+  window.addEventListener('resize', updatePinbar);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      pinned = null;
+      activePreview = null;
+      markPinned();
+      refreshBoardView();
+    }
+  });
+
+  loadExample();
+})();
+</script>
+</body>
+</html>
